@@ -1,0 +1,50 @@
+version: "3"
+
+# @see https://doc.traefik.io/traefik/setup/swarm/
+
+networks:
+  custom_overlay_network:
+    external: true
+
+services:
+  traefik:
+    image: traefik:v3.6
+    command:
+      # Observability
+      - "--log.level=INFO" # Set the Log Level e.g INFO, DEBUG
+      - "--accesslog=true" # Enable Access Logs
+
+      # API & Dashboard
+      - "--api.dashboard=true" # Enable the dashboard
+      - "--api.insecure=true" # Explicitly enable insecure API mod
+
+      # Enable Swarm Provider
+      - "--providers.swarm=true"
+
+      # HTTP EntryPoint
+      - "--entrypoints.web.address=:80"
+
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - custom_overlay_network
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.role == manager
+
+      # Traefik Dynamic configuration via labels
+      # In Swarm, labels on the service definition configure Traefik routing for that service.
+      labels:
+        # Enable Service discovery
+        - "traefik.enable=true"
+
+        # Service hint
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"

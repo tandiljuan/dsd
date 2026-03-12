@@ -1,0 +1,29 @@
+version: "3"
+
+networks:
+  custom_overlay_network:
+    external: true
+
+services:
+  whoami:
+    image: traefik/whoami
+
+    networks:
+      - custom_overlay_network
+    deploy:
+      #mode: replicated
+      #replicas: 4
+
+      #placement:
+      #  constraints:
+      #    - node.role == worker
+
+      labels:
+        # Enable Service discovery for Traefik
+        - "traefik.enable=true"
+
+        # Define the WHoami router rule
+        - "traefik.http.routers.whoami.rule=Host(`whoami.swarm.localhost`)"
+
+        # Expose the whoami port number to Traefik
+        - "traefik.http.services.whoami.loadbalancer.server.port=80"
