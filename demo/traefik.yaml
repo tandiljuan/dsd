@@ -45,5 +45,14 @@ services:
         # Enable Service discovery
         - "traefik.enable=true"
 
+        # Middlewares
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.regex=^/(traefik)$$"
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.replacement=/$${1}/"
+
+        # Define the Traefik router rule
+        - "traefik.http.routers.traefik.rule=PathPrefix(`/traefik`)"
+        - "traefik.http.routers.traefik.middlewares=traefik-addslash"
+        - "traefik.http.routers.traefik.service=api@internal"
+
         # Service hint
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
