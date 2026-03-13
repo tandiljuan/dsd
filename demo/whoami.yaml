@@ -10,6 +10,7 @@ services:
 
     networks:
       - custom_overlay_network
+
     deploy:
       #mode: replicated
       #replicas: 4
