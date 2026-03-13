@@ -128,7 +128,7 @@ container_up () {
     if [[ -z "${node_id}" ]]; then
         local publish=''
         if [[ "${name}" == "${PREFIX_MANAGER}1" ]]; then
-            publish='--publish 12375:2375 --publish 10080:80'
+            publish='--publish 12375:2375 --publish 18080:80'
         fi
         node_id=$(
             docker run \
