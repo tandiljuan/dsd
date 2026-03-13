@@ -22,8 +22,12 @@ services:
         # Enable Service discovery for Traefik
         - "traefik.enable=true"
 
-        # Define the WHoami router rule
-        - "traefik.http.routers.whoami.rule=Host(`whoami.swarm.localhost`)"
+        # Middlewares
+        - "traefik.http.middlewares.whoami-stripprefix.stripprefix.prefixes=/whoami"
+
+        # Define the Whoami router rule
+        - "traefik.http.routers.whoami.rule=(Host(`whoami.swarm.localhost`) || PathPrefix(`/whoami`))"
+        - "traefik.http.routers.whoami.middlewares=whoami-stripprefix"
 
         # Expose the whoami port number to Traefik
         - "traefik.http.services.whoami.loadbalancer.server.port=80"
