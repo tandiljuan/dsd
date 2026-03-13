@@ -9,6 +9,7 @@ networks:
 services:
   traefik:
     image: traefik:v3.6
+
     command:
       # Observability
       - "--log.level=INFO"
@@ -26,8 +27,10 @@ services:
 
     ports:
       - "80:80"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
     networks:
       - custom_overlay_network
 
