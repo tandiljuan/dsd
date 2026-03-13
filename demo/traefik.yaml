@@ -11,12 +11,12 @@ services:
     image: traefik:v3.6
     command:
       # Observability
-      - "--log.level=INFO" # Set the Log Level e.g INFO, DEBUG
-      - "--accesslog=true" # Enable Access Logs
+      - "--log.level=INFO"
+      - "--accesslog=true"
 
       # API & Dashboard
-      - "--api.dashboard=true" # Enable the dashboard
-      - "--api.insecure=true" # Explicitly enable insecure API mod
+      - "--api=true"
+      - "--api.basepath=/traefik/"
 
       # Enable Swarm Provider
       - "--providers.swarm=true"
