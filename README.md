@@ -112,7 +112,7 @@ docker stack deploy \
     stack-proxy
 ```
 
-Access the Traefik dashboard at [http://localhost:18080/](http://localhost:18080/).
+Access the Traefik dashboard at [http://localhost:18080/traefik](http://localhost:18080/traefik).
 
 Deploy a simple [whoami](https://hub.docker.com/r/traefik/whoami) service:
 
@@ -130,12 +130,12 @@ docker service ls
 
 #### Testing the Service
 
-Send a request using `curl`:
+You can check the service using a custom path prefix at [http://localhost:18080/whoami](http://localhost:18080/whoami), or by sending a request with `curl` using a custom host name:
 
 ```bash
 curl \
     --header 'Host: whoami.swarm.localhost' \
-    localhost:10080
+    localhost:18080
 ```
 
 You can also test the service from inside the swarm network.
