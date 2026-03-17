@@ -1,0 +1,51 @@
+version: '3.8'
+
+# https://github.com/moby/moby/issues/32299#issuecomment-1996146337
+
+# docker run -d --net=teal_test_hello -e WHO=ONE --name who_1 traefik/whoami
+# docker run -d --net=teal_test_hello -e WHO=TWO --name who_2 traefik/whoami
+#
+# docker run --rm -it --net=host -v /run/socat:/run/socat --entrypoint /bin/sh alpine/socat
+#  socat -dd TCP-LISTEN:8081,bind=localhost,fork UNIX:/run/socat/one.sock &
+#  socat -dd TCP-LISTEN:8082,bind=localhost,fork UNIX:/run/socat/two.sock &
+#
+# docker run --rm -it --net=teal_test_hello -v /run/socat:/run/socat --entrypoint /bin/sh alpine/socat
+#  socat -dd UNIX-LISTEN:/run/socat/one.sock,unlink-early,fork TCP:who_1:80 &
+#  socat -dd UNIX-LISTEN:/run/socat/two.sock,unlink-early,fork TCP:who_2:80 &
+
+networks:
+  teal_registry:
+    external: true
+  public:
+    name: host
+    external: true
+
+services:
+
+  socat-dir:
+    image: alpine
+    command: mkdir -p /run/socat
+    volumes:
+      - /run:/run
+    deploy:
+      mode: global-job
+
+  tcp_to_unix:
+    image: alpine/socat
+    command: "-dd TCP-LISTEN:5000,fork,bind=localhost UNIX:/run/socat/registry.sock"
+    volumes:
+      - /run/socat:/run/socat
+    networks:
+      - public
+    deploy:
+      mode: global
+
+  unix_to_tcp:
+    image: alpine/socat
+    command: "-dd UNIX-LISTEN:/run/socat/registry.sock,fork TCP:registry.teal:5000"
+    volumes:
+      - /run/socat:/run/socat
+    networks:
+      - teal_registry
+    deploy:
+      mode: global

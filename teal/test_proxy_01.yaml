@@ -1,0 +1,56 @@
+version: '3.8'
+
+networks:
+  internal:
+    driver: overlay
+  public:
+    name: host
+    external: true
+
+services:
+
+  #################################
+  # Proxy Option #1: UNIX SOCKETS #
+  #################################
+
+  socket-dir:
+    image: alpine
+    command: mkdir -p /run/socat
+    volumes:
+      - /run:/run
+    deploy:
+      mode: global-job
+
+  tcp_to_unix:
+    image: alpine/socat
+    command: "-dd TCP-LISTEN:8081,fork,bind=localhost UNIX:/run/socat/whoami.sock"
+    volumes:
+      - /run/socat:/run/socat
+    networks:
+      - public
+    deploy:
+      mode: global
+
+  unix_to_tcp:
+    image: alpine/socat
+    command: "-dd UNIX-LISTEN:/run/socat/whoami.sock,unlink-early,fork TCP:whoami:8081"
+    volumes:
+      - /run/socat:/run/socat
+    networks:
+      - internal
+    deploy:
+      mode: global
+
+  ##################
+  # Service WHOAMI #
+  ##################
+
+  whoami:
+    image: traefik/whoami
+    hostname: whoami
+    environment:
+      WHOAMI_PORT_NUMBER: 8081
+      WHOAMI_NAME: "WHOAMI 8081"
+      NODE_HOSTNAME: "{{ .Node.Hostname }}"
+    networks:
+      - internal

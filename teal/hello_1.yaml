@@ -1,0 +1,40 @@
+version: "3.8"
+
+networks:
+  teal_test_hello:
+    external: true
+  teal_proxy:
+    external: true
+
+services:
+  hello_1:
+    image: kilna/envhttpd
+
+    environment:
+      HELLO: "1 (ONE)"
+
+    networks:
+      teal_test_hello:
+        aliases: &aliases
+          - hello1.teal
+      teal_proxy:
+        aliases: *aliases
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+
+      labels:
+        # Enable Service discovery for Traefik
+        - "traefik.enable=true"
+
+        # Middlewares
+        - "traefik.http.middlewares.hello_1-stripprefix.stripprefix.prefixes=/hello_1"
+
+        # Define the Whoami router rule
+        - "traefik.http.routers.hello_1.rule=(Host(`hello_1.swarm.localhost`) || PathPrefix(`/hello_1`))"
+        - "traefik.http.routers.hello_1.middlewares=hello_1-stripprefix"
+
+        # Expose the hello_1 port number to Traefik
+        - "traefik.http.services.hello_1.loadbalancer.server.port=8111"

@@ -1,0 +1,39 @@
+version: "3.8"
+
+networks:
+  teal_repo:
+    external: true
+
+services:
+  soft:
+    image: charmcli/soft-serve:v0.11
+
+    environment:
+      SOFT_SERVE_INITIAL_ADMIN_KEYS: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIW1fY/fG5UWIKi4p81VhNk8+SGIv7Rnuv3lEOqVRx/q"
+
+    ports:
+      - "23231:23231"
+
+    volumes:
+      - soft:/soft-serve
+
+    networks:
+      teal_repo:
+        aliases:
+          - repo.teal
+          - soft.repo.teal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      labels:
+        # Disable service discovery
+        - "traefik.enable=false"
+
+volumes:
+  soft:

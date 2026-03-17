@@ -1,0 +1,59 @@
+version: '3.8'
+
+networks:
+  internal:
+    driver: overlay
+
+services:
+
+  #############################
+  # Proxy Option #3: IPTABLES #
+  #############################
+
+  iptables:
+    image: alpine
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - published: 8083
+        target: 8083
+        protocol: tcp
+        mode: host
+    volumes:
+      - /run/socat:/run/socat
+    networks:
+      - internal
+    extra_hosts:
+      - "host.swarm:host-gateway"
+    environment:
+      LISTEN_HOST: host.swarm
+      LISTEN_PORT: 8083
+      BACKEND_HOST: whoami
+      BACKEND_PORT: 8083
+    # # >> Install iptables and socat
+    # apk update && apk add --no-cache socat iptables
+    # # >> Get HOST IP
+    # LISTEN_IP=$(ip route | grep default | awk '{print $3}')
+    # # >> Allow only $LISTEN_IP to connect to local port 8083
+    # iptables -A INPUT -p tcp -s $LISTEN_IP --dport 8083 -j ACCEPT
+    # # >> Drop everything else
+    # iptables -A INPUT -p tcp --dport 8083 -j DROP
+    # # >> Proxy calls to internal service
+    # socat -dd TCP-LISTEN:8083,fork TCP:whoami:8083
+    entrypoint: "/bin/sh -c 'sleep infinity'"
+    deploy:
+      mode: global
+
+  ##################
+  # Service WHOAMI #
+  ##################
+
+  whoami:
+    image: traefik/whoami
+    hostname: whoami
+    environment:
+      WHOAMI_PORT_NUMBER: 8083
+      WHOAMI_NAME: "WHOAMI 8083"
+      NODE_HOSTNAME: "{{ .Node.Hostname }}"
+    networks:
+      - internal

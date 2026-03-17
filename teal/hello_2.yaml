@@ -1,0 +1,49 @@
+version: "3.8"
+
+networks:
+  teal_test_hello:
+    external: true
+  teal_proxy:
+    external: true
+
+services:
+  hello_2:
+    image: kilna/envhttpd
+
+    environment:
+      HELLO: "2 (TWO)"
+
+    networks:
+      teal_test_hello:
+        aliases: &aliases
+          - hello2.teal
+      teal_proxy:
+        aliases: *aliases
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      labels:
+        # Enable Service discovery for Traefik
+        - "traefik.enable=false"
+
+  socat:
+    image: alpine/socat:latest
+
+    ports:
+      - target: 8080
+        published: 8080
+        mode: host
+
+    networks:
+      - teal_test_hello
+
+    command: "-dd TCP-LISTEN:8080,bind=0.0.0.0,fork TCP:hello_2:8111"
+
+    deploy:
+      mode: global # one instance per node

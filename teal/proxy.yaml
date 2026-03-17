@@ -1,0 +1,68 @@
+version: "3.8"
+
+# @see https://doc.traefik.io/traefik/setup/swarm/
+
+networks:
+  teal_proxy:
+    external: true
+
+services:
+  traefik:
+    image: traefik:v3.6
+
+    command:
+      # Observability
+      - "--log.level=INFO"
+      - "--accesslog=true"
+
+      # API & Dashboard
+      - "--api=true"
+      - "--api.basepath=/traefik/"
+
+      # Enable Swarm Provider
+      - "--providers.swarm=true"
+
+      # HTTP EntryPoint
+      - "--entrypoints.web.address=:80"
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks:
+      teal_proxy:
+        aliases:
+          - proxy.teal
+          - traefik.proxy.teal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      # Traefik Dynamic configuration via labels
+      # In Swarm, labels on the service definition configure Traefik routing for that service.
+      labels:
+        # Enable Service discovery
+        - "traefik.enable=true"
+
+        # Middlewares
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.regex=^/(traefik)$$"
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.replacement=/$${1}/"
+
+        #- "traefik.http.middlewares.traefik-addslash.redirectregex.regex=^(https?)://(.*)/traefik$$"
+        #- "traefik.http.middlewares.traefik-addslash.redirectregex.replacement=$${1}://$${2}/traefik/"
+        #- "traefik.http.middlewares.traefik-addslash.redirectregex.permanent=true" # 301 Permanent Redirect
+
+        # Define the Traefik router rule
+        - "traefik.http.routers.traefik.rule=PathPrefix(`/traefik`)"
+        - "traefik.http.routers.traefik.middlewares=traefik-addslash"
+        - "traefik.http.routers.traefik.service=api@internal"
+
+        # Service hint
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"

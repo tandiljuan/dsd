@@ -1,0 +1,33 @@
+version: "3.8"
+
+networks:
+  teal_registry:
+    external: true
+
+services:
+  distribution:
+    image: registry:3
+
+    volumes:
+      - distribution:/var/lib/registry
+
+    networks:
+      teal_registry:
+        aliases:
+          - registry.teal
+          - distribution.registry.teal
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      labels:
+        # Disable service discovery
+        - "traefik.enable=false"
+
+volumes:
+  distribution:

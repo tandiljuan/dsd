@@ -1,0 +1,69 @@
+version: '3.8'
+
+networks:
+  internal:
+    driver: overlay
+
+services:
+
+  ############################
+  # Proxy Option #2: HAPROXY #
+  ############################
+
+  haproxy:
+    image: haproxy:alpine
+    ports:
+      - published: 8082
+        target: 8082
+        protocol: tcp
+        mode: host
+    networks:
+      - internal
+    extra_hosts:
+      - "host.swarm:host-gateway"
+    environment:
+      LISTEN_HOST: host.swarm
+      LISTEN_PORT: 8082
+      BACKEND_HOST: whoami
+      BACKEND_PORT: 8082
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        LISTEN_IP=$$(ip route | grep default | awk '{print $$3}')
+        cat <<EOF >/var/lib/haproxy/haproxy.cfg
+        global
+            log stdout format raw daemon info
+        defaults
+            log global
+            mode http
+            # https://www.haproxy.com/blog/introduction-to-haproxy-logging
+            log-format "%TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r"
+            timeout connect 5s
+            timeout client  50s
+            timeout server  50s
+        frontend tcp_front
+            bind *:$${LISTEN_PORT}
+            acl allowed_ip src $${LISTEN_IP}
+            tcp-request connection reject if !allowed_ip
+            default_backend tcp_back
+        backend tcp_back
+            server tcp_srv1 $${BACKEND_HOST}:$${BACKEND_PORT}
+        EOF
+        exec haproxy -f /var/lib/haproxy/haproxy.cfg
+    deploy:
+      mode: global
+
+  ##################
+  # Service WHOAMI #
+  ##################
+
+  whoami:
+    image: traefik/whoami
+    hostname: whoami
+    environment:
+      WHOAMI_PORT_NUMBER: 8082
+      WHOAMI_NAME: "WHOAMI 8082"
+      NODE_HOSTNAME: "{{ .Node.Hostname }}"
+    networks:
+      - internal
