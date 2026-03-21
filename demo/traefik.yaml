@@ -9,14 +9,15 @@ networks:
 services:
   traefik:
     image: traefik:v3.6
+
     command:
       # Observability
-      - "--log.level=INFO" # Set the Log Level e.g INFO, DEBUG
-      - "--accesslog=true" # Enable Access Logs
+      - "--log.level=INFO"
+      - "--accesslog=true"
 
       # API & Dashboard
-      - "--api.dashboard=true" # Enable the dashboard
-      - "--api.insecure=true" # Explicitly enable insecure API mod
+      - "--api=true"
+      - "--api.basepath=/traefik/"
 
       # Enable Swarm Provider
       - "--providers.swarm=true"
@@ -26,9 +27,10 @@ services:
 
     ports:
       - "80:80"
-      - "8080:8080"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
     networks:
       - custom_overlay_network
 
@@ -45,6 +47,15 @@ services:
       labels:
         # Enable Service discovery
         - "traefik.enable=true"
+
+        # Middlewares
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.regex=^/(traefik)$$"
+        - "traefik.http.middlewares.traefik-addslash.replacepathregex.replacement=/$${1}/"
+
+        # Define the Traefik router rule
+        - "traefik.http.routers.traefik.rule=PathPrefix(`/traefik`)"
+        - "traefik.http.routers.traefik.middlewares=traefik-addslash"
+        - "traefik.http.routers.traefik.service=api@internal"
 
         # Service hint
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
