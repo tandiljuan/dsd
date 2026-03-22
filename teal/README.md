@@ -16,6 +16,7 @@ docker network create \
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/proxy.yaml \
     teal_proxy
 ```
@@ -34,6 +35,7 @@ docker network create \
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/repo.yaml \
     teal_repo
 ```
@@ -60,11 +62,19 @@ docker network create \
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/registry.yaml \
     teal_registry
 ```
 
-### Test
+```bash
+docker stack deploy \
+    --detach=false \
+    --compose-file teal/registry_proxy.yaml \
+    teal_registry_proxy
+```
+
+### Test (old)
 
 ```bash
 docker run --rm -it \
@@ -85,6 +95,24 @@ docker image tag alpine distribution:5000/myimage
 docker push distribution:5000/myimage
 docker pull distribution:5000/myimage
 ```
+
+### Test (new)
+
+Log in into manager1
+
+```bash
+docker exec -it manager1 sh
+```
+
+Pull alpine image, tag it, push it to the local registry and pull it back to double check.
+
+```bash
+docker pull alpine
+docker image tag alpine localhost:5000/test
+docker push localhost:5000/test
+docker pull localhost:5000/test
+```
+
 
 ----------------------------------------
 
@@ -117,12 +145,14 @@ docker network create \
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/hello_1.yaml \
     teal_web
 ```
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/hello_2.yaml \
     teal_web
 ```
@@ -149,6 +179,7 @@ Internal Proxy
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/test_proxy_01.yaml \
     test_proxy1
 ```
@@ -165,6 +196,7 @@ wget -q -O - localhost:8081/?env=true
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/test_proxy_02.yaml \
     test_proxy2
 ```
@@ -179,6 +211,7 @@ Proof of concept
 
 ```bash
 docker stack deploy \
+    --detach=false \
     --compose-file teal/test_proxy_03.yaml \
     test_proxy3
 ```
