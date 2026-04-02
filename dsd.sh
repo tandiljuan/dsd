@@ -500,10 +500,17 @@ EOF
 # -------------------------------------
 # Handle Script Commands
 # -------------------------------------
-case "${1}" in
+
+# Get dsd main command
+DSD_COMMAND="${1}"
+
+# Remove command from the parameters
+shift
+
+case "${DSD_COMMAND}" in
     "up")
         echo "> # CREATE SWARM CLUSTER"
-        action_up ${2:-1} ${3:-0}
+        action_up ${1:-1} ${2:-0}
         ;;
     "down")
         echo "> # DESTROY SWARM CLUSTER"
@@ -518,10 +525,10 @@ case "${1}" in
         action_start
         ;;
     "ip")
-        container_ip "${2:-${PREFIX_MANAGER}1}"
+        container_ip "${1:-${PREFIX_MANAGER}1}"
         ;;
     "docker")
-        docker exec -it "${PREFIX_MANAGER}1" docker ${@:2}
+        docker exec -it "${PREFIX_MANAGER}1" docker ${@:1}
         ;;
     *)
         action_help
