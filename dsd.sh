@@ -226,6 +226,7 @@ container_ip () {
 #   $2 - Node index
 #   $3 - Manager IP address
 #   $4 - Swarm join token
+#   $5 - List of extra parameters for the Docker daemon
 #
 # Returns:
 #   Prints the swarm state of the node and status messages describing
@@ -233,7 +234,7 @@ container_ip () {
 # -------------------------------------
 node_up () {
     local name="${1}${2}"
-    container_up "${name}"
+    container_up "${name}" "${5}"
     local state=$(swarm_state "${name}")
     echo "> [${name}] Swarm state: '${state}'"
     if [[ 'inactive' == "${state}" ]]; then
