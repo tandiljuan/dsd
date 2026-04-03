@@ -344,6 +344,8 @@ swarm_state () {
 # Arguments:
 #   $1 - Desired number of manager nodes (default: 1)
 #   $2 - Desired number of worker nodes (default: 0)
+#   $3 - List of ports to publish (in the main manager node)
+#   $4 - List of extra parameters for the Docker daemon
 #
 # Returns:
 #   Prints cluster creation progress and displays the swarm node list
@@ -352,6 +354,8 @@ swarm_state () {
 action_up () {
     local managers_amount=${1:-1}
     local workers_amount=${2:-0}
+    local publish_ports="${3}"
+    local extra_parameters="${4}"
 
     if (( $managers_amount <= 0 )); then
         echo "> The amount of managers must be equal or greater than 1"
@@ -371,7 +375,7 @@ action_up () {
 
     # Create main manager node
     local manager_name="${PREFIX_MANAGER}1"
-    container_up "${manager_name}"
+    container_up "${manager_name}" "${extra_parameters}" "${publish_ports}"
 
     # Setup Swarm
     local manager_ip=$(container_ip "${manager_name}")
@@ -395,12 +399,12 @@ action_up () {
 
     # Create managers
     for i in $(seq 2 "${managers_amount}"); do
-        node_up $PREFIX_MANAGER $i $manager_ip $token_manager
+        node_up $PREFIX_MANAGER $i $manager_ip $token_manager "${extra_parameters}"
     done
 
     # Create workers
     for i in $(seq 1 "${workers_amount}"); do
-        node_up $PREFIX_WORKER $i $manager_ip $token_worker
+        node_up $PREFIX_WORKER $i $manager_ip $token_worker "${extra_parameters}"
     done
 
     echo
