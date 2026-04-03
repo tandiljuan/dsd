@@ -522,9 +522,12 @@ instead of Kubernetes, with far fewer features and a lot of bugs.
 
 Commands:
 
-up [MANAGERS] [WORKERS]    Create a swarm network and cluster with the
-                           specified number of nodes. Defaults: 1 manager and 0
-                           workers.
+up                         Create a swarm network and cluster with the
+                           specified number of nodes.
+   [[-p HOST:MANAGER]]     Publish a manager's port to the host.
+   [[-e 'DOCKER PARAM']]   Extra parameters for Docker daemon.
+   [MANAGERS]              Amount of managers. Default: 1.
+   [WORKERS]               Amount of workers. Default: 0.
 down                       Remove the swarm cluster and its network.
 stop                       Stop all nodes in the running swarm cluster.
 start                      Start a previously stopped swarm cluster.
