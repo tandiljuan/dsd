@@ -544,10 +544,33 @@ DSD_COMMAND="${1}"
 # Remove command from the parameters
 shift
 
+UP_PUBLISH=''
+UP_EXTRA=''
+
+# Parse named options from parameters
+while getopts "p:e:" opt; do
+    case $opt in
+        p)
+            UP_PUBLISH=$(hane "${UP_PUBLISH}" ' ')
+            UP_PUBLISH="${UP_PUBLISH}$OPTARG"
+            ;;
+        e)
+            UP_EXTRA=$(hane "${UP_EXTRA}" ' ')
+            UP_EXTRA="${UP_EXTRA}$OPTARG"
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
+
+# Remove processed options from parameters
+shift $((OPTIND -1))
+
 case "${DSD_COMMAND}" in
     "up")
         echo "> # CREATE SWARM CLUSTER"
-        action_up ${1:-1} ${2:-0}
+        action_up "${1:-1}" "${2:-0}" "${UP_PUBLISH}" "${UP_EXTRA}"
         ;;
     "down")
         echo "> # DESTROY SWARM CLUSTER"
