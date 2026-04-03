@@ -24,6 +24,30 @@ PREFIX_MANAGER='manager'
 PREFIX_WORKER='worker'
 
 # -------------------------------------
+# hane: Helper Append if Not Empty
+#
+# Appends the second string to the first string, only if the first
+# string is not empty.
+#
+# Globals:
+#   None
+#
+# Arguments:
+#   $1 - The main string (to which the second string may be appended)
+#   $2 - The string to append
+#
+# Returns:
+#   Prints the resulting string (unchanged if the first string is empty)
+# -------------------------------------
+hane () {
+    local result="${1}"
+    if [[ "${result}" ]]; then
+        result="${result}${2}"
+    fi
+    echo "${result}"
+}
+
+# -------------------------------------
 # Download Image.
 #
 # Download a Docker image if it is not already present locally.
