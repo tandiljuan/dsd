@@ -135,6 +135,8 @@ network_down () {
 #
 # Arguments:
 #   $1 - Container name
+#   $2 - List of extra parameters for the Docker daemon
+#   $3 - List of ports to publish (in the main manager node)
 #
 # Returns:
 #   Prints container status and waits until the Docker daemon inside
@@ -142,6 +144,8 @@ network_down () {
 # -------------------------------------
 container_up () {
     local name="${1}"
+    local extra_params="${2}"
+    local publish_ports="${3}"
     local node_id=$(docker ps --all --filter "name=${name}" --quiet)
     local status=$(docker inspect --format '{{.State.Status}}' "${name}" 2>/dev/null | tr -cd '[:alnum:]')
 
@@ -150,20 +154,24 @@ container_up () {
     fi
 
     if [[ -z "${node_id}" ]]; then
-        local publish=''
+        local list="${publish_ports}"
+        publish_ports=''
         if [[ "${name}" == "${PREFIX_MANAGER}1" ]]; then
-            publish='--publish 12375:2375 --publish 18080:80'
+            for i in $list; do
+                publish_ports=$(hane "${publish_ports}" ' ')
+                publish_ports="${publish_ports}--publish ${i}"
+            done
         fi
         node_id=$(
             docker run \
             --detach \
             --privileged \
-            --network "${NAME_SWARM_NET}" $publish \
+            --network "${NAME_SWARM_NET}" $publish_ports \
             --env DOCKER_TLS_CERTDIR='' \
             --env DOCKER_HOST='tcp://0.0.0.0:2375' \
             --hostname "${name}" \
             --name "${name}" \
-            "${NAME_IMAGE}" | cut -c 1-12
+            "${NAME_IMAGE}" $extra_params | cut -c 1-12
         )
     fi
 
