@@ -28,14 +28,14 @@ Usage
 
 ### Commands
 
-| Command                   | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `up [MANAGERS] [WORKERS]` | Create or scale the swarm cluster                |
-| `down`                    | Destroy the swarm cluster                        |
-| `stop`                    | Stop all swarm containers                        |
-| `start`                   | Start previously stopped containers              |
-| `ip [NODE]`               | Print the IP address of a node                   |
-| `docker ...`              | Run Docker commands inside the main manager node |
+| Command  | Description                                      |
+| ---------| ------------------------------------------------ |
+| `up`     | Create or scale the swarm cluster                |
+| `down`   | Destroy the swarm cluster                        |
+| `stop`   | Stop all swarm containers                        |
+| `start`  | Start previously stopped containers              |
+| `ip`     | Print the IP address of a node                   |
+| `docker` | Run Docker commands inside the main manager node |
 
 
 Demostration
@@ -46,7 +46,7 @@ Demostration
 Start a Docker Swarm cluster (inside Docker) with a single node:
 
 ```bash
-./dsd.sh up
+./dsd.sh up -p 12375:2375 -p 18080:80
 ```
 
 You can run Docker commands directly inside the main manager node using the helper command:
