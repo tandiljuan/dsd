@@ -189,6 +189,14 @@ After these changes:
 * Four instances of the `whoami` service should run on **worker nodes**
 * The dashboard and `curl` tests should continue working normally
 
+### Remove the cluster
+
+To remove the entire cluster and its network, run the following command:
+
+```bash
+./dsd.sh down -n
+```
+
 
 Use Cases
 ---------
