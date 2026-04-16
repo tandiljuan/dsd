@@ -423,12 +423,13 @@ action_up () {
 #   PREFIX_WORKER
 #
 # Arguments:
-#   None
+#   $1 - Flag: remove network (true/false). Default: false.
 #
 # Returns:
 #   Prints status messages describing the cluster teardown process.
 # -------------------------------------
 action_down () {
+    local remove_network=${1:-false}
     local manager_name="${PREFIX_MANAGER}1"
 
     # Downgrade workers
@@ -438,7 +439,9 @@ action_down () {
     node_downgrade $PREFIX_MANAGER 0 $manager_name
 
     # Remove network
-    network_down "${NAME_SWARM_NET}"
+    if [[ $remove_network == true ]]; then
+        network_down "${NAME_SWARM_NET}"
+    fi
 }
 
 # -------------------------------------
