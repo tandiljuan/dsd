@@ -24,6 +24,30 @@ PREFIX_MANAGER='manager'
 PREFIX_WORKER='worker'
 
 # -------------------------------------
+# hane: Helper Append if Not Empty
+#
+# Appends the second string to the first string, only if the first
+# string is not empty.
+#
+# Globals:
+#   None
+#
+# Arguments:
+#   $1 - The main string (to which the second string may be appended)
+#   $2 - The string to append
+#
+# Returns:
+#   Prints the resulting string (unchanged if the first string is empty)
+# -------------------------------------
+hane () {
+    local result="${1}"
+    if [[ "${result}" ]]; then
+        result="${result}${2}"
+    fi
+    echo "${result}"
+}
+
+# -------------------------------------
 # Download Image.
 #
 # Download a Docker image if it is not already present locally.
@@ -111,6 +135,8 @@ network_down () {
 #
 # Arguments:
 #   $1 - Container name
+#   $2 - List of extra parameters for the Docker daemon
+#   $3 - List of ports to publish (in the main manager node)
 #
 # Returns:
 #   Prints container status and waits until the Docker daemon inside
@@ -118,6 +144,8 @@ network_down () {
 # -------------------------------------
 container_up () {
     local name="${1}"
+    local extra_params="${2}"
+    local publish_ports="${3}"
     local node_id=$(docker ps --all --filter "name=${name}" --quiet)
     local status=$(docker inspect --format '{{.State.Status}}' "${name}" 2>/dev/null | tr -cd '[:alnum:]')
 
@@ -126,20 +154,24 @@ container_up () {
     fi
 
     if [[ -z "${node_id}" ]]; then
-        local publish=''
+        local list="${publish_ports}"
+        publish_ports=''
         if [[ "${name}" == "${PREFIX_MANAGER}1" ]]; then
-            publish='--publish 12375:2375 --publish 18080:80'
+            for i in $list; do
+                publish_ports=$(hane "${publish_ports}" ' ')
+                publish_ports="${publish_ports}--publish ${i}"
+            done
         fi
         node_id=$(
             docker run \
             --detach \
             --privileged \
-            --network "${NAME_SWARM_NET}" $publish \
+            --network "${NAME_SWARM_NET}" $publish_ports \
             --env DOCKER_TLS_CERTDIR='' \
             --env DOCKER_HOST='tcp://0.0.0.0:2375' \
             --hostname "${name}" \
             --name "${name}" \
-            "${NAME_IMAGE}" | cut -c 1-12
+            "${NAME_IMAGE}" $extra_params | cut -c 1-12
         )
     fi
 
@@ -194,6 +226,7 @@ container_ip () {
 #   $2 - Node index
 #   $3 - Manager IP address
 #   $4 - Swarm join token
+#   $5 - List of extra parameters for the Docker daemon
 #
 # Returns:
 #   Prints the swarm state of the node and status messages describing
@@ -201,7 +234,7 @@ container_ip () {
 # -------------------------------------
 node_up () {
     local name="${1}${2}"
-    container_up "${name}"
+    container_up "${name}" "${5}"
     local state=$(swarm_state "${name}")
     echo "> [${name}] Swarm state: '${state}'"
     if [[ 'inactive' == "${state}" ]]; then
@@ -311,6 +344,8 @@ swarm_state () {
 # Arguments:
 #   $1 - Desired number of manager nodes (default: 1)
 #   $2 - Desired number of worker nodes (default: 0)
+#   $3 - List of ports to publish (in the main manager node)
+#   $4 - List of extra parameters for the Docker daemon
 #
 # Returns:
 #   Prints cluster creation progress and displays the swarm node list
@@ -319,6 +354,8 @@ swarm_state () {
 action_up () {
     local managers_amount=${1:-1}
     local workers_amount=${2:-0}
+    local publish_ports="${3}"
+    local extra_parameters="${4}"
 
     if (( $managers_amount <= 0 )); then
         echo "> The amount of managers must be equal or greater than 1"
@@ -338,7 +375,7 @@ action_up () {
 
     # Create main manager node
     local manager_name="${PREFIX_MANAGER}1"
-    container_up "${manager_name}"
+    container_up "${manager_name}" "${extra_parameters}" "${publish_ports}"
 
     # Setup Swarm
     local manager_ip=$(container_ip "${manager_name}")
@@ -362,12 +399,12 @@ action_up () {
 
     # Create managers
     for i in $(seq 2 "${managers_amount}"); do
-        node_up $PREFIX_MANAGER $i $manager_ip $token_manager
+        node_up $PREFIX_MANAGER $i $manager_ip $token_manager "${extra_parameters}"
     done
 
     # Create workers
     for i in $(seq 1 "${workers_amount}"); do
-        node_up $PREFIX_WORKER $i $manager_ip $token_worker
+        node_up $PREFIX_WORKER $i $manager_ip $token_worker "${extra_parameters}"
     done
 
     echo
@@ -386,12 +423,13 @@ action_up () {
 #   PREFIX_WORKER
 #
 # Arguments:
-#   None
+#   $1 - Flag: remove network (true/false). Default: false.
 #
 # Returns:
 #   Prints status messages describing the cluster teardown process.
 # -------------------------------------
 action_down () {
+    local remove_network=${1:-false}
     local manager_name="${PREFIX_MANAGER}1"
 
     # Downgrade workers
@@ -401,7 +439,9 @@ action_down () {
     node_downgrade $PREFIX_MANAGER 0 $manager_name
 
     # Remove network
-    network_down "${NAME_SWARM_NET}"
+    if [[ $remove_network == true ]]; then
+        network_down "${NAME_SWARM_NET}"
+    fi
 }
 
 # -------------------------------------
@@ -485,10 +525,16 @@ instead of Kubernetes, with far fewer features and a lot of bugs.
 
 Commands:
 
-up [MANAGERS] [WORKERS]    Create a swarm network and cluster with the
-                           specified number of nodes. Defaults: 1 manager and 0
-                           workers.
+up                         Create a swarm network and cluster with the
+                           specified number of nodes.
+   [[-p HOST:MANAGER]]     Publish a manager's port to the host.
+   [[-e 'DOCKER PARAM']]   Extra parameters for Docker daemon.
+   [MANAGERS]              Amount of managers. Default: 1.
+   [WORKERS]               Amount of workers. Default: 0.
 down                       Remove the swarm cluster and its network.
+   [-n]                    Instructs the down command to also remove the
+                           network. By default, the network is not
+                           removed.
 stop                       Stop all nodes in the running swarm cluster.
 start                      Start a previously stopped swarm cluster.
 ip [NODE]                  Return the IP of the specified node. The
@@ -500,14 +546,48 @@ EOF
 # -------------------------------------
 # Handle Script Commands
 # -------------------------------------
-case "${1}" in
+
+# Get dsd main command
+DSD_COMMAND="${1}"
+
+# Remove command from the parameters
+shift
+
+UP_PUBLISH=''
+UP_EXTRA=''
+DOWN_NETWORK=false
+
+# Parse named options from parameters
+while getopts "p:e:n" opt; do
+    case $opt in
+        p)
+            UP_PUBLISH=$(hane "${UP_PUBLISH}" ' ')
+            UP_PUBLISH="${UP_PUBLISH}$OPTARG"
+            ;;
+        e)
+            UP_EXTRA=$(hane "${UP_EXTRA}" ' ')
+            UP_EXTRA="${UP_EXTRA}$OPTARG"
+            ;;
+        n)
+            DOWN_NETWORK=true
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
+
+# Remove processed options from parameters
+shift $((OPTIND -1))
+
+case "${DSD_COMMAND}" in
     "up")
         echo "> # CREATE SWARM CLUSTER"
-        action_up ${2:-1} ${3:-0}
+        action_up "${1:-1}" "${2:-0}" "${UP_PUBLISH}" "${UP_EXTRA}"
         ;;
     "down")
         echo "> # DESTROY SWARM CLUSTER"
-        action_down
+        action_down $DOWN_NETWORK
         ;;
     "stop")
         echo "> # STOP SWARM CLUSTER"
@@ -518,10 +598,10 @@ case "${1}" in
         action_start
         ;;
     "ip")
-        container_ip "${2:-${PREFIX_MANAGER}1}"
+        container_ip "${1:-${PREFIX_MANAGER}1}"
         ;;
     "docker")
-        docker exec -it "${PREFIX_MANAGER}1" docker ${@:2}
+        docker exec -it "${PREFIX_MANAGER}1" docker ${@:1}
         ;;
     *)
         action_help
