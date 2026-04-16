@@ -532,6 +532,9 @@ up                         Create a swarm network and cluster with the
    [MANAGERS]              Amount of managers. Default: 1.
    [WORKERS]               Amount of workers. Default: 0.
 down                       Remove the swarm cluster and its network.
+   [-n]                    Instructs the down command to also remove the
+                           network. By default, the network is not
+                           removed.
 stop                       Stop all nodes in the running swarm cluster.
 start                      Start a previously stopped swarm cluster.
 ip [NODE]                  Return the IP of the specified node. The
