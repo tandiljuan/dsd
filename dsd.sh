@@ -552,9 +552,10 @@ shift
 
 UP_PUBLISH=''
 UP_EXTRA=''
+DOWN_NETWORK=false
 
 # Parse named options from parameters
-while getopts "p:e:" opt; do
+while getopts "p:e:n" opt; do
     case $opt in
         p)
             UP_PUBLISH=$(hane "${UP_PUBLISH}" ' ')
@@ -563,6 +564,9 @@ while getopts "p:e:" opt; do
         e)
             UP_EXTRA=$(hane "${UP_EXTRA}" ' ')
             UP_EXTRA="${UP_EXTRA}$OPTARG"
+            ;;
+        n)
+            DOWN_NETWORK=true
             ;;
         *)
             exit 1
@@ -580,7 +584,7 @@ case "${DSD_COMMAND}" in
         ;;
     "down")
         echo "> # DESTROY SWARM CLUSTER"
-        action_down
+        action_down $DOWN_NETWORK
         ;;
     "stop")
         echo "> # STOP SWARM CLUSTER"
