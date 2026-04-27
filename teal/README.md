@@ -555,3 +555,13 @@ ssh soft repo webhook create color_number "http://webhook.cicd.teal/laminar" -c 
 Now update the `web` repository by modifying the `config.env` file (change the value of `NUMBER` to 2), commit, and push. Follow the pipeline execution until the running site updates and displays the new number.
 
 ![web 2](./assets/web_2.png)
+
+---
+
+## Cleanup
+
+To remove all resources created in this tutorial.
+
+```bash
+../dsd.sh down -n
+```
