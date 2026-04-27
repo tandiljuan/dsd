@@ -319,3 +319,74 @@ Remove the local image.
 ```bash
 docker rmi localhost:5000/teal/test:latest
 ```
+
+---
+
+## Dummy Web Site
+
+### Create Project
+
+Create a remote repository in **soft serve**.
+
+```bash
+ssh soft repo create color_number
+```
+
+Create a local repository by copying the `web` directory.
+
+```bash
+cp -r web web.git
+```
+
+Initialize and commit.
+
+```bash
+cd web.git && \
+git init && \
+git add . && \
+git commit -m 'first commit'
+```
+
+Set the remote and push.
+
+```bash
+git remote add origin soft:color_number.git && \
+git push -f -u origin master && \
+cd ..
+```
+
+At this point, the project is tracked with Git and uses the local server as its remote.
+
+### Container Image
+
+Build the container image.
+
+```bash
+docker build \
+    --force-rm \
+    --tag localhost:5000/teal/web \
+    ./web.git/
+```
+
+Push the image.
+
+```bash
+docker push localhost:5000/teal/web
+```
+
+### Deploy
+
+Deploy the service.
+
+```bash
+docker stack deploy \
+    --detach=false \
+    --compose-file swarm/web.yaml \
+    teal_web
+```
+
+Once the deployment finishes, access the site at [http://CHANGE_WITH_YOUR_HOST:18080/web](http://CHANGE_WITH_YOUR_HOST:18080/web).
+
+![web 1](./assets/web_1.png)
+
+If the page does not load, verify that Traefik is running and that the service is listed in `docker service ls`.
