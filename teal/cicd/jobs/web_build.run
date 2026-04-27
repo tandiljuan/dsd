@@ -1,0 +1,72 @@
+#!/bin/bash -ex
+
+VOLUME_NAME="laminar_tmp_vol"
+CONTAINER_NAME="laminar_tmp_cnt"
+REPO_NETWORK="teal_repo"
+REPO_HOST="soft.repo.teal"
+REPO_SSH_PORT="23231"
+REPO_NAME="color_number"
+REPO_BRANCH=${branch:-master}
+REPO_LOCAL="repo.git"
+VERSION_FILE="version.txt"
+REGISTRY_HOST="localhost"
+REGISTRY_PORT="5000"
+IMAGE_NAME="teal/web"
+IMAGE_TAG="latest"
+IMAGE_URI="${REGISTRY_HOST}:${REGISTRY_PORT}/${IMAGE_NAME}"
+
+# If present, remove container and volume
+[[ -n $(docker ps -qf "name=${CONTAINER_NAME}") ]] && docker rm -f "${CONTAINER_NAME}"
+[[ -n $(docker volume ls -qf "name=${VOLUME_NAME}") ]] && docker volume rm "${VOLUME_NAME}"
+
+# Create shared volume
+docker volume create "${VOLUME_NAME}"
+
+# Script to clone repository
+SCRIPT=$(cat <<EOF
+echo "\${GUEST_KEY}" > /tmp/guest_key && chmod 600 /tmp/guest_key
+apk update && apk add --no-cache git openssh-client
+cd /build
+rm -rf "${REPO_LOCAL}"
+git clone \
+--config core.sshCommand="ssh -q -p ${REPO_SSH_PORT} -i /tmp/guest_key -o StrictHostKeyChecking=no" \
+--branch "${REPO_BRANCH}" --single-branch "${REPO_HOST}:${REPO_NAME}" "${REPO_LOCAL}"
+cd "${REPO_LOCAL}"
+git show --oneline --compact-summary | head -n1 | cut -d" " -f1 > "${VERSION_FILE}"
+EOF
+)
+
+# Execute script
+docker run --rm -i \
+    --env "GUEST_KEY=$(cat $SOFT_SERVE_GUEST_KEY)" \
+    --volume "${VOLUME_NAME}:/build" \
+    --network "${REPO_NETWORK}" \
+    alpine \
+    /bin/sh -c "${SCRIPT}"
+
+# Run temporal container to mount volume
+docker run --rm -d \
+    -v "${VOLUME_NAME}:/build" \
+    --name "${CONTAINER_NAME}" \
+    busybox \
+    /bin/sh -c 'sleep infinity'
+
+# Copy code from volume
+docker cp "${CONTAINER_NAME}:/build/${REPO_LOCAL}" .
+
+# Remove container and volume
+docker rm -f "${CONTAINER_NAME}"
+docker volume rm "${VOLUME_NAME}"
+
+if [[ -f "${REPO_LOCAL}/${VERSION_FILE}" ]]; then
+    IMAGE_TAG="$(cat ./${REPO_LOCAL}/${VERSION_FILE})"
+fi
+
+IMAGE_URI="${IMAGE_URI}:${IMAGE_TAG}"
+
+# Build Container Image
+docker build --tag "${IMAGE_URI}" "./${REPO_LOCAL}/"
+docker push "${IMAGE_URI}"
+
+# Deploy Service
+laminarc queue web_deploy IMAGE_URI="${IMAGE_URI}"

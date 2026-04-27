@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Color &amp; Number</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #${BACKGROUND_COLOR};
+        font-family: Arial, sans-serif;
+      }
+      .number {
+        font-size: 30vmin;
+        color: white;
+        font-weight: bold;
+        text-shadow:
+          -2px -2px 0 black,
+          2px -2px 0 black,
+          -2px  2px 0 black,
+          2px  2px 0 black;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="number">${NUMBER}</div>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+#!/bin/bash -ex
+
+docker stack deploy \
+    --detach=true \
+    --compose-file /var/lib/laminar/cfg/swarm/web.yaml \
+    teal_web

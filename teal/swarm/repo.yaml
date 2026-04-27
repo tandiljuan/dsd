@@ -1,0 +1,50 @@
+version: "3.8"
+
+networks:
+  teal_repo:
+    external: true
+
+secrets:
+  teal_soft_admin_keys:
+    external: true
+
+services:
+
+  soft:
+
+    # Needs to stick to version 0.11.0 because of:
+    # https://github.com/charmbracelet/soft-serve/security/advisories/GHSA-vwq2-jx9q-9h9f
+    image: charmcli/soft-serve:v0.11.0
+
+    networks:
+      teal_repo:
+        aliases:
+          - repo.teal
+          - soft.repo.teal
+
+    ports:
+      - "23231:23231"
+
+    volumes:
+      - soft:/soft-serve
+
+    secrets:
+      - teal_soft_admin_keys
+
+    environment:
+      SOFT_SERVE_INITIAL_ADMIN_KEYS: /run/secrets/teal_soft_admin_keys
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      labels:
+        # Disable service discovery
+        - "traefik.enable=false"
+
+volumes:
+  soft:

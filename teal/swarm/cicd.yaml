@@ -1,0 +1,109 @@
+version: "3.8"
+
+networks:
+  teal_cicd:
+    external: true
+  teal_proxy:
+    external: true
+  teal_repo:
+    external: true
+
+secrets:
+  teal_soft_guest_private_key:
+    external: true
+
+services:
+
+  laminar:
+
+    image: localhost:5000/teal/laminar
+
+    networks:
+      teal_cicd:
+        aliases: &aliases-laminar
+          - cicd.teal
+          - laminar.cicd.teal
+      teal_proxy:
+        aliases: *aliases-laminar
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - laminar-data:/var/lib/laminar/
+
+    secrets:
+      - teal_soft_guest_private_key
+
+    environment:
+      LAMINAR_HOME: /var/lib/laminar
+      LAMINAR_TITLE: "Teal | CI/CD"
+      LAMINAR_BIND_HTTP: "*:8080"
+      LAMINAR_BIND_RPC: "*:9997"
+      LAMINAR_BASE_URL: /laminar/
+      SOFT_SERVE_GUEST_KEY: /run/secrets/teal_soft_guest_private_key
+
+    entrypoint:
+      - /usr/sbin/laminard
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      # Traefik Dynamic configuration via labels
+      # In Swarm, labels on the service definition configure Traefik routing for that service.
+      labels:
+        # Enable Service discovery
+        - "traefik.enable=true"
+
+        # Middlewares
+        - "traefik.http.middlewares.laminar-addslash.redirectregex.regex=^(https?)://(.*)/laminar$$"
+        - "traefik.http.middlewares.laminar-addslash.redirectregex.replacement=$${1}://$${2}/laminar/"
+        - "traefik.http.middlewares.laminar-addslash.redirectregex.permanent=true" # 301 Permanent Redirect
+        - "traefik.http.middlewares.laminar-strip.stripprefix.prefixes=/laminar"
+
+        # Define the Traefik router rule
+        - "traefik.http.routers.laminar.rule=PathPrefix(`/laminar`)"
+        - "traefik.http.routers.laminar.middlewares=laminar-addslash,laminar-strip"
+
+        # Service hint
+        - "traefik.http.services.laminar.loadbalancer.server.port=8080"
+
+  # --------------------
+
+  webhook:
+
+    image: localhost:5000/teal/webhook
+
+    networks:
+      teal_cicd:
+        aliases: &aliases-webhook
+          - webhook.cicd.teal
+      teal_repo:
+        aliases: *aliases-webhook
+
+    volumes:
+      - webhook-data:/var/lib/webhook/
+
+    environment:
+      WHD_LISTEN_ADDR: ":80"
+      WHD_HOOK_SCRIPTS: /var/lib/webhook/
+      WHD_LOG_MODULES: "http,hook"
+      WHD_HOOK_LOG_DIR: /var/lib/webhook/logs/
+
+    entrypoint:
+      - /usr/bin/webhookd
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+volumes:
+  laminar-data:
+  webhook-data:
