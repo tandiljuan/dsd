@@ -4,9 +4,22 @@
 
 ## Introduction
 
-This tutorial walks through building a complete, self-contained Docker Swarm environment for local development and experimentation. Using a cluster created with the `dsd` script, you will deploy and connect several real-world components.
+This tutorial walks through building a complete, self-contained Docker Swarm environment for local development and experimentation. Using a cluster created with the `dsd` script, you will deploy and connect several real-world components:
 
-The goal is to provide a practical, end-to-end example of how services interact inside a Docker Swarm cluster.
+* a reverse proxy (Traefik)
+* a self-hosted Git server (Soft Serve)
+* a private container registry
+* a sample web application
+* a simple CI/CD pipeline (Laminar + webhookd)
+
+The cluster used in this tutorial consists of **1 manager node and 3 worker nodes**, all running locally using Docker-in-Docker. Although everything runs on a single host, this setup simulates a small distributed environment and allows you to explore how services are scheduled and communicate across nodes.
+
+The goal is to provide a practical, end-to-end example of how services interact inside a Docker Swarm cluster. By the end of this tutorial, you will have a working system where:
+
+* code is stored in a Git server
+* changes trigger a CI/CD pipeline via webhooks
+* new container images are built and stored in a registry
+* applications are deployed and exposed through a reverse proxy
 
 This setup is intentionally simplified and designed for learning purposes.
 
@@ -15,6 +28,8 @@ Before starting, make sure:
 * Docker is installed and running
 * you have already completed the main `dsd` README tutorial
 * you are running commands from the directory containing this README
+
+Keep in mind that you will need to replace the placeholder `CHANGE_WITH_YOUR_HOST` with the IP address (or hostname) where the swarm cluster is running (for example, `localhost` if you are running everything locally).
 
 ---
 
