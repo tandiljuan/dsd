@@ -15,3 +15,15 @@ Before starting, make sure:
 * Docker is installed and running
 * you have already completed the main `dsd` README tutorial
 * you are running commands from the directory containing this README
+
+---
+
+## Swarm Cluster
+
+Start by creating a Docker Swarm cluster with the following command.
+
+```bash
+../dsd.sh up -p 12375:2375 -p 18080:80 -p 10022:23231 -e '--insecure-registry localhost:5000' 1 3
+```
+
+The main difference compared to the cluster in the main README is that here we expose an additional port to access the local Git server (hosted inside the swarm cluster), and we pass a parameter to allow an insecure local registry that we will also host.
