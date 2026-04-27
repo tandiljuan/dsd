@@ -390,3 +390,168 @@ Once the deployment finishes, access the site at [http://CHANGE_WITH_YOUR_HOST:1
 ![web 1](./assets/web_1.png)
 
 If the page does not load, verify that Traefik is running and that the service is listed in `docker service ls`.
+
+---
+
+## CI/CD
+
+In this section we will build a simple **Continuous Integration / Continuous Delivery** system. Each time code is pushed to the repository, the Git server sends a [webhook](https://en.wikipedia.org/wiki/Webhook) to a CI/CD service. That service fetches the changes, builds a new image, and deploys it to the cluster.
+
+We will use:
+
+* [laminar](https://github.com/ohwgiles/laminar): lightweight CI
+* [webhookd](https://github.com/ncarlier/webhookd): webhook handler
+
+Laminar does not support webhooks directly, so **webhookd** acts as a bridge.
+
+### Guest User
+
+Create SSH keys for the guest user.
+
+```bash
+ssh-keygen -t ed25519 -N '' -C "guest@soft" -f ~/.ssh/for_soft_guest
+```
+
+Save the private key as a secret.
+
+```bash
+cat ~/.ssh/for_soft_guest | docker secret create teal_soft_guest_private_key -
+```
+
+Create the user.
+
+```bash
+ssh soft-admin user create guest
+```
+
+Add the public key.
+
+```bash
+ssh soft-admin user add-pubkey guest "$(cat ~/.ssh/for_soft_guest.pub | sed 's/\s\+guest@soft$//')"
+```
+
+### Network
+
+Create the CI/CD network.
+
+```bash
+docker network create \
+    --driver overlay \
+    --attachable \
+    teal_cicd
+```
+
+### Container Images
+
+Build the laminar image.
+
+```bash
+docker build \
+    --force-rm \
+    --tag localhost:5000/teal/laminar \
+    --build-arg DOCKER_VERSION="$(docker version --format '{{.Client.Version}}')" \
+    --target laminar \
+    ./cicd/
+```
+
+Push it.
+
+```bash
+docker push localhost:5000/teal/laminar
+```
+
+Build the webhook image.
+
+```bash
+docker build \
+    --force-rm \
+    --tag localhost:5000/teal/webhook \
+    --build-arg DOCKER_VERSION="$(docker version --format '{{.Client.Version}}')" \
+    --target webhook \
+    ./cicd/
+```
+
+Push it.
+
+```bash
+docker push localhost:5000/teal/webhook
+```
+
+Clean unused images.
+
+```bash
+docker image prune --force
+```
+
+### Deploy
+
+Deploy the stack.
+
+```bash
+docker stack deploy \
+    --detach=false \
+    --compose-file swarm/cicd.yaml \
+    teal_cicd
+```
+
+Access laminar at [http://CHANGE_WITH_YOUR_HOST:18080/laminar](http://CHANGE_WITH_YOUR_HOST:18080/laminar).
+
+![laminar's dashboard](./assets/laminar.png)
+
+### Setup Laminar
+
+Copy the jobs into the container.
+
+```bash
+docker cp ./cicd/jobs/. $(docker ps | grep teal_cicd_laminar | cut -d' ' -f1):/var/lib/laminar/cfg/jobs/
+```
+
+Copy swarm configuration files.
+
+```bash
+docker cp ./swarm $(docker ps | grep teal_cicd_laminar | cut -d' ' -f1):/var/lib/laminar/cfg/
+```
+
+Run a test job.
+
+```bash
+docker exec -it $(docker ps | grep teal_cicd_laminar | cut -d' ' -f1) bash -c 'laminarc queue hello foo=bar'
+```
+
+Check the dashboard to verify execution.
+
+### Setup Webhookd
+
+Create the logs directory (it is not created automatically).
+
+```bash
+docker run --rm -it --volume teal_cicd_webhook-data:/opt alpine mkdir -p /opt/logs
+```
+
+Copy webhook scripts.
+
+```bash
+docker cp ./cicd/hooks/. $(docker ps | grep teal_cicd_webhook | cut -d' ' -f1):/var/lib/webhook/
+```
+
+Test the webhook.
+
+```bash
+docker run --rm -it --network teal_cicd alpine wget \
+    -qO- \
+    --header="Content-Type: application/json" \
+    --post-data='{"name": "John", "age": 30}' \
+    http://webhook.cicd.teal/hello
+```
+
+### Test Whole Flow
+
+Configure the repository to send webhooks on push.
+
+```bash
+ssh soft repo webhook create color_number "http://webhook.cicd.teal/laminar" -c json -e push
+```
+
+Now update the `web` repository by modifying the `config.env` file (change the value of `NUMBER` to 2), commit, and push. Follow the pipeline execution until the running site updates and displays the new number.
+
+![web 2](./assets/web_2.png)
