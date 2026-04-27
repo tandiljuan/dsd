@@ -207,3 +207,115 @@ Admin: false
 Public keys:
   ssh-ed25519 AAAAC3...
 ```
+
+---
+
+## Container Registry
+
+For the container registry we will use Docker's [distribution](https://github.com/distribution/distribution) project.
+
+### Network
+
+Create the registry network.
+
+```bash
+docker network create \
+    --driver overlay \
+    --attachable \
+    teal_registry
+```
+
+### Deploy
+
+Run the following command. This will start the registry on the main manager and a proxy on all nodes, allowing image push and pull from any node.
+
+```bash
+docker stack deploy \
+    --detach=false \
+    --compose-file swarm/registry.yaml \
+    teal_registry
+```
+
+### Test
+
+Pull the alpine image.
+
+```bash
+docker pull alpine
+```
+
+Tag the image.
+
+```bash
+docker image tag alpine localhost:5000/teal/test
+```
+
+Push the image.
+
+```bash
+docker push localhost:5000/teal/test
+```
+
+Pull it again to confirm it works.
+
+```bash
+docker pull localhost:5000/teal/test
+```
+
+If push or pull fails, ensure the insecure registry flag was correctly set when creating the cluster.
+
+### Remove Image from Registry
+
+We will use the following calls to inspect and delete images from the registry.
+
+```
+curl -X GET http://<registry_host>:<port>/v2/<repo_name>/manifests/<tag>
+curl -X DELETE http://<registry_host>:<port>/v2/<repo_name>/manifests/<digest>
+```
+
+Run a temporary container to perform the cleanup.
+
+```bash
+docker run --rm -it --network teal_registry alpine sh
+```
+
+Install `curl`.
+
+```bash
+apk update && apk add curl
+```
+
+Set the environment variables.
+
+```bash
+export REGISTRY_HOST='registry.teal'
+export REGISTRY_PORT='5000'
+export REPO_NAME='teal/test'
+export REPO_TAG='latest'
+export MANIFEST_URI="http://${REGISTRY_HOST}:${REGISTRY_PORT}/v2/${REPO_NAME}/manifests"
+```
+
+Get the image digest.
+
+```bash
+REPO_DIGEST=$(curl -s -I -H "Accept: application/vnd.oci.image.manifest.v1+json" "${MANIFEST_URI}/${REPO_TAG}" 2>&1 | grep 'Docker-Content-Digest' | awk -F' ' '{print $2}' | tr -dc '[:alnum:]:') \
+&& echo ">> Digests: '${REPO_DIGEST}'"
+```
+
+Delete the image.
+
+```bash
+curl -X DELETE "${MANIFEST_URI}/${REPO_DIGEST}"
+```
+
+Exit the container and run the garbage collector.
+
+```bash
+docker exec -it $(docker ps | grep teal_registry_distribution | cut -d' ' -f1) /bin/registry garbage-collect --delete-untagged /etc/distribution/config.yml
+```
+
+Remove the local image.
+
+```bash
+docker rmi localhost:5000/teal/test:latest
+```
