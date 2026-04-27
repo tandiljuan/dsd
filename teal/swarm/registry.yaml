@@ -1,0 +1,92 @@
+version: "3.8"
+
+networks:
+  teal_registry:
+    external: true
+
+services:
+
+  distribution:
+
+    image: registry:3
+
+    networks:
+      teal_registry:
+        aliases:
+          - registry.teal
+          - distribution.registry.teal
+
+    volumes:
+      - distribution:/var/lib/registry
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.hostname == manager1
+
+      labels:
+        # Disable service discovery
+        - "traefik.enable=false"
+
+  # --------------------
+
+  haproxy:
+
+    image: haproxy:alpine
+
+    networks:
+      - teal_registry
+
+    ports:
+      - published: 5000
+        target: 5000
+        protocol: tcp
+        mode: host
+
+    extra_hosts:
+      - "host.swarm:host-gateway"
+
+    environment:
+      LISTEN_HOST: host.swarm
+      LISTEN_PORT: 5000
+      BACKEND_HOST: registry.teal
+      BACKEND_PORT: 5000
+
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        LISTEN_IP=$$(ip route | grep default | awk '{print $$3}')
+        cat <<EOF >/var/lib/haproxy/haproxy.cfg
+        global
+            log stdout format raw daemon info
+        defaults
+            log global
+            mode http
+            # https://www.haproxy.com/blog/introduction-to-haproxy-logging
+            log-format "%TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r"
+            timeout connect 5s
+            timeout client  50s
+            timeout server  50s
+        frontend tcp_front
+            bind *:$${LISTEN_PORT}
+            acl allowed_ip src $${LISTEN_IP}
+            tcp-request connection reject if !allowed_ip
+            default_backend tcp_back
+        backend tcp_back
+            server tcp_srv1 $${BACKEND_HOST}:$${BACKEND_PORT}
+        EOF
+        exec haproxy -f /var/lib/haproxy/haproxy.cfg
+
+    deploy:
+      mode: global
+
+      labels:
+        # Disable service discovery
+        - "traefik.enable=false"
+
+volumes:
+  distribution:
