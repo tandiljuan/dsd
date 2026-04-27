@@ -33,6 +33,65 @@ Keep in mind that you will need to replace the placeholder `CHANGE_WITH_YOUR_HOS
 
 ---
 
+## Architecture
+
+The following diagram shows how the main components in this demo are connected.
+
+```mermaid
+flowchart TB
+
+    %% External
+    User["User (Browser / Docker Client)"]
+
+    %% Swarm Cluster
+    subgraph Swarm["Docker Swarm Cluster"]
+
+        %% Manager node (logical view)
+        subgraph Manager["Manager Node"]
+            Traefik["Traefik (Reverse Proxy)"]
+            Registry["Docker Registry"]
+            Git["Soft Serve (Git Server)"]
+        end
+
+        %% Worker nodes (logical)
+        subgraph Workers["Worker Nodes"]
+            Web["Web Application"]
+        end
+
+        %% CI/CD stack
+        subgraph CICD["CI/CD"]
+            Webhook["webhookd"]
+            Laminar["Laminar CI"]
+        end
+
+        %% Overlay networks (logical grouping)
+        subgraph Networks["Overlay Networks"]
+            NetProxy["teal_proxy"]
+            NetRepo["teal_repo"]
+            NetRegistry["teal_registry"]
+            NetWeb["teal_web"]
+            NetCICD["teal_cicd"]
+        end
+    end
+
+    %% External access
+    User -->|HTTP| Traefik
+    User -->|SSH| Git
+    User -->|Docker API| Registry
+
+    %% Internal flows
+    Git -->|"Webhook (push events)"| Webhook
+    Webhook --> Laminar
+
+    Laminar -->|Build Image| Registry
+    Laminar -->|Deploy Stack| Web
+
+    %% Traffic routing
+    Web -->|HTTP| Traefik
+```
+
+---
+
 ## Swarm Cluster
 
 Start by creating a Docker Swarm cluster with the following command.
