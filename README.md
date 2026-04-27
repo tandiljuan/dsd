@@ -198,6 +198,12 @@ To remove the entire cluster and its network, run the following command:
 ```
 
 
+Worked Example
+--------------
+
+If you want a demonstration that walks through building a complete, self-contained Docker Swarm environment for local development and experimentation, see the [teal tutorial](./teal/README.md).
+
+
 Use Cases
 ---------
 
