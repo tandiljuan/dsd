@@ -1,0 +1,47 @@
+version: "3.8"
+
+networks:
+  teal_proxy:
+    external: true
+
+services:
+
+  teal:
+
+    image: ${IMAGE_URI:-localhost:5000/teal/web}
+
+    networks:
+      teal_proxy:
+        aliases: &aliases
+          - web.teal
+          - teal.web.teal
+
+    environment:
+      BACKGROUND_COLOR: "008080"
+
+    deploy:
+      mode: replicated
+      replicas: 3
+
+      placement:
+        constraints:
+          - node.role == worker
+
+      # Traefik Dynamic configuration via labels
+      # In Swarm, labels on the service definition configure Traefik routing for that service.
+      labels:
+        # Enable Service discovery
+        - "traefik.enable=true"
+
+        # Middlewares
+        - "traefik.http.middlewares.web-addslash.redirectregex.regex=^(https?)://(.*)/web$$"
+        - "traefik.http.middlewares.web-addslash.redirectregex.replacement=$${1}://$${2}/web/"
+        - "traefik.http.middlewares.web-addslash.redirectregex.permanent=true" # 301 Permanent Redirect
+        - "traefik.http.middlewares.web-strip.stripprefix.prefixes=/web"
+
+        # Define the Traefik router rule
+        - "traefik.http.routers.web.rule=PathPrefix(`/web`)"
+        - "traefik.http.routers.web.middlewares=web-addslash,web-strip"
+
+        # Service hint
+        - "traefik.http.services.web.loadbalancer.server.port=80"
