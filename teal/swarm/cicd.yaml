@@ -36,8 +36,8 @@ services:
     environment:
       LAMINAR_HOME: /var/lib/laminar
       LAMINAR_TITLE: "Teal | CI/CD"
-      LAMINAR_BIND_HTTP: "*:8080"
-      LAMINAR_BIND_RPC: "*:9997"
+      LAMINAR_BIND_HTTP: "0.0.0.0:8080"
+      LAMINAR_BIND_RPC: "0.0.0.0:9997"
       LAMINAR_BASE_URL: /laminar/
       SOFT_SERVE_GUEST_KEY: /run/secrets/teal_soft_guest_private_key
 
